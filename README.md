@@ -1,5 +1,8 @@
 # Command Center — Personal Transformation Tracker
 
+**Live:** <https://apoellin1986.github.io/command-center/>
+Push to `main` and GitHub Actions rebuilds and redeploys automatically.
+
 A private, offline-first PWA to track weight loss, fitness discipline, supplements,
 futsal, push-ups and daily consistency. No login, no cloud, no accounts. All data
 lives **only on your device** in `localStorage`.
