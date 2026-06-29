@@ -1,0 +1,169 @@
+import type { ISODate, RequiredField } from '../types'
+import { useStore } from '../storage/StoreContext'
+import { isFieldSatisfied } from '../utils/calculations'
+import ToggleButton from './ToggleButton'
+import NumberStepper from './NumberStepper'
+import SegmentedControl from './SegmentedControl'
+import { IconDrop, IconDumbbell, IconFlame, IconFutsal } from './icons'
+
+const REQUIRED_LABELS: Record<RequiredField, string> = {
+  creatine: 'Creatine',
+  vitamins: 'Vitamins',
+  pushups: 'Push-ups',
+  waterTarget: 'Water',
+  weightKg: 'Weight',
+}
+
+export default function DailyChecklist({ date }: { date: ISODate }) {
+  const { getLog, updateLog, db } = useStore()
+  const log = getLog(date)
+  const settings = db.settings
+  const customSupps = settings.customSupplements.filter((s) => s.enabled)
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Weight */}
+      <div>
+        <label className="field-label mb-2 block">Body weight (kg)</label>
+        <input
+          type="number"
+          inputMode="decimal"
+          step="0.1"
+          value={log.weightKg ?? ''}
+          placeholder="—"
+          onChange={(e) =>
+            updateLog(date, { weightKg: e.target.value === '' ? null : Number(e.target.value) })
+          }
+          className="input text-center text-2xl font-bold"
+        />
+      </div>
+
+      {/* Push-ups */}
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <label className="field-label">Push-ups</label>
+          <span className="text-xs text-zinc-500">Target {settings.dailyPushupTarget}</span>
+        </div>
+        <NumberStepper
+          value={log.pushups}
+          onChange={(v) => updateLog(date, { pushups: v })}
+          step={5}
+          quickAdds={[10, 20, 50]}
+          suffix="reps"
+        />
+      </div>
+
+      {/* Supplements */}
+      <div className="flex flex-col gap-2">
+        <label className="field-label">Supplements</label>
+        <ToggleButton
+          label="Creatine"
+          hint="Daily — non-negotiable"
+          value={log.creatine}
+          onChange={(v) => updateLog(date, { creatine: v })}
+        />
+        <ToggleButton
+          label="Vitamins"
+          hint="Vitamin D / multivitamin"
+          value={log.vitamins}
+          onChange={(v) => updateLog(date, { vitamins: v })}
+        />
+        {customSupps.map((s) => (
+          <ToggleButton
+            key={s.id}
+            label={s.name}
+            value={!!log.customSupplements[s.id]}
+            onChange={(v) =>
+              updateLog(date, {
+                customSupplements: { ...log.customSupplements, [s.id]: v },
+              })
+            }
+          />
+        ))}
+      </div>
+
+      {/* Training */}
+      <div className="flex flex-col gap-2">
+        <label className="field-label">Training</label>
+        <ToggleButton
+          label="Futsal played"
+          icon={<IconFutsal width={20} height={20} />}
+          value={log.futsalPlayed}
+          onChange={(v) => updateLog(date, { futsalPlayed: v })}
+        />
+        <ToggleButton
+          label="Home workout"
+          icon={<IconDumbbell width={20} height={20} />}
+          value={log.homeWorkout}
+          onChange={(v) => updateLog(date, { homeWorkout: v })}
+        />
+        <ToggleButton
+          label="Steps / cardio"
+          icon={<IconFlame width={20} height={20} />}
+          value={log.cardio}
+          onChange={(v) => updateLog(date, { cardio: v })}
+        />
+      </div>
+
+      {/* Discipline */}
+      <div className="flex flex-col gap-2">
+        <label className="field-label">Discipline</label>
+        <ToggleButton
+          label="Water target hit"
+          hint={settings.waterGoalDescription}
+          icon={<IconDrop width={20} height={20} />}
+          value={log.waterTarget}
+          strict
+          onChange={(v) => updateLog(date, { waterTarget: v })}
+        />
+        <ToggleButton
+          label="Sweets avoided"
+          value={log.sweetsAvoided}
+          onChange={(v) => updateLog(date, { sweetsAvoided: v })}
+        />
+      </div>
+
+      {/* Sleep */}
+      <div>
+        <label className="field-label mb-2 block">Sleep quality</label>
+        <SegmentedControl
+          value={log.sleepQuality}
+          onChange={(v) => updateLog(date, { sleepQuality: v })}
+          options={[1, 2, 3, 4, 5].map((n) => ({ label: String(n), value: n }))}
+        />
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="field-label mb-2 block">Notes</label>
+        <textarea
+          value={log.notes}
+          onChange={(e) => updateLog(date, { notes: e.target.value })}
+          rows={3}
+          placeholder="How did today go? Be honest."
+          className="input resize-none"
+        />
+      </div>
+    </div>
+  )
+}
+
+export function RequiredChecklistStatus({ date }: { date: ISODate }) {
+  const { getLog, db } = useStore()
+  const log = getLog(date)
+  return (
+    <div className="flex flex-wrap gap-2">
+      {db.settings.requiredFields.map((f) => {
+        const ok = isFieldSatisfied(log, f)
+        return (
+          <span
+            key={f}
+            className={`pill ${ok ? 'bg-good/20 text-good' : 'bg-base-700 text-zinc-400'}`}
+          >
+            {ok ? '✓' : '○'} {REQUIRED_LABELS[f]}
+          </span>
+        )
+      })}
+    </div>
+  )
+}

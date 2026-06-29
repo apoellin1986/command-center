@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-base-900 text-zinc-100 antialiased;
+  /* respect notches */
+  padding: env(safe-area-inset-top) 0 0 0;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* Hide number input spinners for a cleaner look */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl bg-base-700 border border-base-600/60 p-4;
+  }
+  .field-label {
+    @apply text-xs font-medium uppercase tracking-wide text-zinc-400;
+  }
+  .input {
+    @apply w-full rounded-xl bg-base-800 border border-base-600 px-3 py-2.5
+      text-zinc-100 outline-none focus:border-accent transition-colors;
+  }
+  .btn {
+    @apply rounded-xl px-4 py-2.5 font-medium transition-colors active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply btn bg-accent text-white hover:bg-blue-500;
+  }
+  .btn-ghost {
+    @apply btn bg-base-700 text-zinc-200 border border-base-600 hover:bg-base-600;
+  }
+  .btn-danger {
+    @apply btn bg-bad/15 text-bad border border-bad/40 hover:bg-bad/25;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+}
+
+/* Thin scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-base-600 rounded-full;
+}
