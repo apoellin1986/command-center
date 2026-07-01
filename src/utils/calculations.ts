@@ -18,16 +18,16 @@ import {
 // ---------------------------------------------------------------------------
 
 export interface ScoreBreakdown {
-  weight: number
   creatine: number
-  vitamins: number
+  omega3: number
   pushups: number
   water: number
   training: number
   notes: number
 }
 
-const RAW_MAX = 90 // sum of weights below; normalised to /100
+// Daily weights sum to 100 (weight & protein are weekly targets, not daily).
+const W = { creatine: 25, omega3: 15, pushups: 20, water: 15, training: 15, notes: 10 }
 
 /** 0–100 discipline score for a single day. */
 export function calculateDailyDisciplineScore(
@@ -35,8 +35,7 @@ export function calculateDailyDisciplineScore(
   settings: GoalSettings,
 ): { score: number; breakdown: ScoreBreakdown } {
   const empty: ScoreBreakdown = {
-    weight: 0, creatine: 0, vitamins: 0, pushups: 0,
-    water: 0, training: 0, notes: 0,
+    creatine: 0, omega3: 0, pushups: 0, water: 0, training: 0, notes: 0,
   }
   if (!log) return { score: 0, breakdown: empty }
 
@@ -44,18 +43,17 @@ export function calculateDailyDisciplineScore(
   const pushRatio = log.pushups != null ? Math.min(1, log.pushups / target) : 0
 
   const breakdown: ScoreBreakdown = {
-    weight: log.weightKg != null ? 15 : 0,
-    creatine: log.creatine ? 15 : 0,
-    vitamins: log.vitamins ? 5 : 0,
-    pushups: Math.round(pushRatio * 15),
-    water: log.waterTarget ? 15 : 0,
-    training: log.homeWorkout || log.futsalPlayed ? 15 : 0,
-    notes: log.notes.trim().length > 0 ? 10 : 0,
+    creatine: log.creatine ? W.creatine : 0,
+    omega3: log.omega3 ? W.omega3 : 0,
+    pushups: Math.round(pushRatio * W.pushups),
+    water: log.waterTarget ? W.water : 0,
+    training: log.homeWorkout || log.futsalPlayed ? W.training : 0,
+    notes: log.notes.trim().length > 0 ? W.notes : 0,
   }
-  const raw =
-    breakdown.weight + breakdown.creatine + breakdown.vitamins +
-    breakdown.pushups + breakdown.water + breakdown.training + breakdown.notes
-  return { score: Math.round((raw / RAW_MAX) * 100), breakdown }
+  const score =
+    breakdown.creatine + breakdown.omega3 + breakdown.pushups +
+    breakdown.water + breakdown.training + breakdown.notes
+  return { score, breakdown }
 }
 
 export type ScoreBand = 'Poor' | 'Weak' | 'Decent' | 'Strong'
@@ -94,10 +92,10 @@ export const calculateMonthlyAverage = calculateWeeklyAverage
 export function isFieldSatisfied(log: DailyLog, field: RequiredField): boolean {
   switch (field) {
     case 'creatine': return log.creatine
-    case 'vitamins': return log.vitamins
+    case 'omega3': return log.omega3
     case 'pushups': return (log.pushups ?? 0) > 0
     case 'waterTarget': return log.waterTarget
-    case 'weightKg': return log.weightKg != null
+    case 'training': return log.futsalPlayed || log.homeWorkout
   }
 }
 
@@ -112,13 +110,50 @@ export function isDayLogged(log: DailyLog | undefined): boolean {
   return (
     log.weightKg != null ||
     log.creatine ||
-    log.vitamins ||
+    log.omega3 ||
+    log.protein ||
     (log.pushups ?? 0) > 0 ||
     log.waterTarget ||
     log.futsalPlayed ||
     log.homeWorkout ||
     log.notes.trim().length > 0
   )
+}
+
+// ---------------------------------------------------------------------------
+// Weekly targets (protein shakes, weigh-ins)
+// ---------------------------------------------------------------------------
+
+export interface WeeklyTargetStat {
+  count: number
+  target: number
+  met: boolean
+}
+
+function countInWeek(
+  logs: Record<ISODate, DailyLog>,
+  weekDates: ISODate[],
+  predicate: (l: DailyLog) => boolean,
+): number {
+  return weekDates.filter((d) => d <= todayISO() && logs[d] && predicate(logs[d])).length
+}
+
+export function calculateProteinWeek(
+  logs: Record<ISODate, DailyLog>,
+  weekDates: ISODate[],
+  target: number,
+): WeeklyTargetStat {
+  const count = countInWeek(logs, weekDates, (l) => l.protein)
+  return { count, target, met: count >= target }
+}
+
+export function calculateWeighInWeek(
+  logs: Record<ISODate, DailyLog>,
+  weekDates: ISODate[],
+  target: number,
+): WeeklyTargetStat {
+  const count = countInWeek(logs, weekDates, (l) => l.weightKg != null)
+  return { count, target, met: count >= target }
 }
 
 // ---------------------------------------------------------------------------

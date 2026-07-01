@@ -15,10 +15,10 @@ import { age } from '../utils/calculations'
 
 const requiredOptions: { value: RequiredField; label: string }[] = [
   { value: 'creatine', label: 'Creatine' },
-  { value: 'vitamins', label: 'Vitamins' },
+  { value: 'omega3', label: 'Omega 3' },
   { value: 'pushups', label: 'Push-ups' },
   { value: 'waterTarget', label: 'Water target' },
-  { value: 'weightKg', label: 'Weight' },
+  { value: 'training', label: 'Training (futsal/workout)' },
 ]
 
 function NumField({ label, value, onChange, step = 1, suffix }: { label: string; value: number; onChange: (v: number) => void; step?: number; suffix?: string }) {
@@ -95,6 +95,8 @@ export default function SettingsPage() {
           <NumField label="Monthly push-ups" value={s.monthlyPushupTarget} onChange={(v) => set({ monthlyPushupTarget: v })} />
           <NumField label="Weekly futsal" value={s.weeklyFutsalTarget} onChange={(v) => set({ weeklyFutsalTarget: v })} />
           <NumField label="Weekly workouts" value={s.weeklyWorkoutTarget} onChange={(v) => set({ weeklyWorkoutTarget: v })} />
+          <NumField label="Protein / week" value={s.weeklyProteinTarget} onChange={(v) => set({ weeklyProteinTarget: v })} />
+          <NumField label="Weigh-ins / week" value={s.weeklyWeightTarget} onChange={(v) => set({ weeklyWeightTarget: v })} />
         </div>
         <div>
           <label className="field-label mb-1.5 block">Water goal</label>

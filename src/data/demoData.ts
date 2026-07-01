@@ -42,12 +42,12 @@ export function generateDemoDatabase(): AppDatabase {
     // habits — strong on weekdays, leakier on weekends
     const disciplined = isWeekend ? r() > 0.45 : r() > 0.12
     log.creatine = r() > (isWeekend ? 0.35 : 0.1)
-    log.vitamins = r() > 0.2
+    log.omega3 = r() > 0.25
+    log.protein = r() > 0.6 // ~2-3x/week
     log.waterTarget = disciplined && r() > 0.2
     log.sweetsAvoided = isWeekend ? r() > 0.6 : r() > 0.25
     log.pushups = disciplined ? 30 + Math.floor(r() * 45) : (r() > 0.5 ? Math.floor(r() * 20) : 0)
     log.cardio = r() > 0.6
-    log.sleepQuality = 2 + Math.floor(r() * 4)
 
     // training
     const playedFutsal = (dow === 2 || dow === 5) && r() > 0.2
@@ -77,7 +77,7 @@ export function generateDemoDatabase(): AppDatabase {
         intensity,
         performance: 5 + Math.floor(r() * 5),
         hydration: 2 + Math.floor(r() * 4),
-        energyBefore: (dailyLogs[date]?.sleepQuality ?? 3),
+        energyBefore: 2 + Math.floor(r() * 4),
         notes: r() > 0.6 ? 'Good game.' : '',
       })
     }

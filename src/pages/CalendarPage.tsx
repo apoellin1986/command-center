@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ISODate } from '../types'
+import type { DailyLog, ISODate } from '../types'
 import { useStore } from '../storage/StoreContext'
 import PageHeader from '../components/PageHeader'
 import DayLogModal from '../components/DayLogModal'
@@ -19,11 +19,11 @@ import { isDayComplete } from '../utils/calculations'
 
 const WD = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-// indicator dots: weight, creatine, vitamins, pushups, futsal, workout, water
-const indicators: { key: string; color: string; test: (l: any) => boolean }[] = [
+// indicator dots: weight, creatine, omega3, pushups, futsal, workout, water
+const indicators: { key: string; color: string; test: (l: DailyLog) => boolean }[] = [
   { key: 'w', color: 'bg-blue-400', test: (l) => l.weightKg != null },
   { key: 'c', color: 'bg-emerald-400', test: (l) => l.creatine },
-  { key: 'v', color: 'bg-violet-400', test: (l) => l.vitamins },
+  { key: 'o', color: 'bg-violet-400', test: (l) => l.omega3 },
   { key: 'p', color: 'bg-amber-400', test: (l) => (l.pushups ?? 0) > 0 },
   { key: 'f', color: 'bg-rose-400', test: (l) => l.futsalPlayed },
   { key: 'g', color: 'bg-orange-400', test: (l) => l.homeWorkout },
@@ -96,7 +96,7 @@ export default function CalendarPage() {
       {/* Legend */}
       <div className="card flex flex-wrap gap-x-4 gap-y-2 text-xs text-zinc-400">
         {[
-          ['bg-blue-400', 'Weight'], ['bg-emerald-400', 'Creatine'], ['bg-violet-400', 'Vitamins'],
+          ['bg-blue-400', 'Weight'], ['bg-emerald-400', 'Creatine'], ['bg-violet-400', 'Omega 3'],
           ['bg-amber-400', 'Push-ups'], ['bg-rose-400', 'Futsal'], ['bg-orange-400', 'Workout'], ['bg-cyan-400', 'Water'],
         ].map(([c, label]) => (
           <span key={label} className="flex items-center gap-1.5">

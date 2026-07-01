@@ -11,7 +11,9 @@ import {
   age,
   calculateCurrentStreak,
   calculateDailyDisciplineScore,
+  calculateProteinWeek,
   calculateWeeklyAverage,
+  calculateWeighInWeek,
   isDayComplete,
   isDayLogged,
   scoreColor,
@@ -44,6 +46,9 @@ export default function TodayPage() {
       weekAvg: calculateWeeklyAverage(weekScores),
     }
   }, [db.dailyLogs, settings, ranges.week, today])
+
+  const protein = calculateProteinWeek(db.dailyLogs, ranges.week, settings.weeklyProteinTarget)
+  const weighIn = calculateWeighInWeek(db.dailyLogs, ranges.week, settings.weeklyWeightTarget)
 
   const daysToBirthday = daysBetween(today, settings.targetDate)
   const turning = age(settings.birthDate, settings.targetDate)
@@ -83,6 +88,31 @@ export default function TodayPage() {
         <StatCard label="Perfect streak" value={perfectStreak} sub="days complete" tone={perfectStreak > 0 ? 'good' : 'neutral'} icon={<IconFlame width={18} height={18} />} />
         <StatCard label="Logging streak" value={loggingStreak} sub="days logged" />
         <StatCard label="Week avg" value={weekAvg} sub="discipline" tone={scoreColor(weekAvg)} />
+      </div>
+
+      {/* Weekly targets — protein & weigh-in */}
+      <div className="card">
+        <p className="field-label mb-3">This week's targets</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex items-center justify-between rounded-xl bg-base-800 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold">Protein shakes</p>
+              <p className="text-xs text-zinc-500">{protein.count} of {protein.target}</p>
+            </div>
+            <span className={`pill ${protein.met ? 'bg-good/20 text-good' : 'bg-base-700 text-zinc-400'}`}>
+              {protein.met ? '✓ Met' : `${Math.max(0, protein.target - protein.count)} left`}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-xl bg-base-800 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold">Weigh-in</p>
+              <p className="text-xs text-zinc-500">{weighIn.count} of {weighIn.target}</p>
+            </div>
+            <span className={`pill ${weighIn.met ? 'bg-good/20 text-good' : 'bg-base-700 text-zinc-400'}`}>
+              {weighIn.met ? '✓ Done' : 'Due'}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Birthday countdown — the deadline */}

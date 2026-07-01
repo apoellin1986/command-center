@@ -89,7 +89,8 @@ export default function SupplementsView() {
   const { db } = useStore()
   const defs: SuppDef[] = [
     { id: 'creatine', name: 'Creatine', get: (l) => l.creatine },
-    { id: 'vitamins', name: 'Vitamins', get: (l) => l.vitamins },
+    { id: 'omega3', name: 'Omega 3', get: (l) => l.omega3 },
+    { id: 'protein', name: 'Protein shake', get: (l) => l.protein },
     ...db.settings.customSupplements
       .filter((s) => s.enabled)
       .map((s) => ({ id: s.id, name: s.name, get: (l: DailyLog) => !!l.customSupplements[s.id] })),

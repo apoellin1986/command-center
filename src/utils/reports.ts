@@ -53,8 +53,11 @@ export function generateWeeklyReport(
   const scores = scoresFor(db, dates)
   const disciplineScore = calculateWeeklyAverage(scores.map((s) => s.score))
 
-  const taken = (field: 'creatine' | 'vitamins') =>
+  const taken = (field: 'creatine' | 'omega3') =>
     pct(past.filter((d) => db.dailyLogs[d]?.[field]).length, past.length)
+
+  const proteinDays = past.filter((d) => db.dailyLogs[d]?.protein).length
+  const weighIns = past.filter((d) => db.dailyLogs[d]?.weightKg != null).length
 
   const pushupTotal = past.reduce((a, d) => a + (db.dailyLogs[d]?.pushups ?? 0), 0)
   const futsalSessions = db.futsalSessions.filter((s) => dates.includes(s.date)).length
@@ -69,7 +72,7 @@ export function generateWeeklyReport(
   // weakness / win
   const metrics: { label: string; value: number }[] = [
     { label: 'creatine', value: taken('creatine') },
-    { label: 'vitamins', value: taken('vitamins') },
+    { label: 'omega 3', value: taken('omega3') },
     { label: 'water', value: pct(past.filter((d) => db.dailyLogs[d]?.waterTarget).length, past.length) },
     { label: 'push-ups', value: pct(past.filter((d) => (db.dailyLogs[d]?.pushups ?? 0) > 0).length, past.length) },
     { label: 'training', value: pct(past.filter((d) => db.dailyLogs[d]?.homeWorkout || db.dailyLogs[d]?.futsalPlayed).length, past.length) },
@@ -90,14 +93,15 @@ export function generateWeeklyReport(
     weightChange: startWeight != null && endWeight != null ? round1(endWeight - startWeight) : null,
     disciplineScore,
     creatineCompliance: taken('creatine'),
-    vitaminsCompliance: taken('vitamins'),
+    omega3Compliance: taken('omega3'),
+    proteinDays, weighIns,
     pushupTotal, futsalSessions, workoutSessions,
     bestDay, worstDay, mainWeakness, mainWin, focusNextWeek,
   }
 }
 
 function buildFocus(weakest: string | undefined, weakestValue: number, score: number, weights: number[]): string {
-  if (score < 50) return 'Simplify. Hit the 4 required fields every single day next week.'
+  if (score < 50) return 'Simplify. Hit the required fields every single day next week.'
   // No real weakness yet — everything is high. Don't invent one.
   if (weakestValue >= 80) return 'No weak link this week. Hold the structure through the weekend.'
   if (weakest === 'water') return 'Water is your weak link. Hit the water target daily.'
@@ -128,7 +132,7 @@ export function generateMonthlyReport(
   const strongDays = scores.filter((s) => s >= 80).length
   const weakDays = scores.filter((s) => s < 40).length
 
-  const taken = (field: 'creatine' | 'vitamins') =>
+  const taken = (field: 'creatine' | 'omega3') =>
     pct(past.filter((d) => db.dailyLogs[d]?.[field]).length, past.length)
 
   const pushupTotal = past.reduce((a, d) => a + (db.dailyLogs[d]?.pushups ?? 0), 0)
@@ -147,7 +151,7 @@ export function generateMonthlyReport(
     weightChange,
     avgDisciplineScore,
     creatineCompliance: taken('creatine'),
-    vitaminsCompliance: taken('vitamins'),
+    omega3Compliance: taken('omega3'),
     pushupTotal, futsalSessions, workoutSessions,
     bestStreak, missedLoggingDays, strongDays, weakDays,
     verdict: buildVerdict(avgDisciplineScore, weightChange, missedLoggingDays, taken('creatine')),

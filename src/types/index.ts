@@ -7,18 +7,18 @@ export type ISODate = string // 'YYYY-MM-DD'
 /** A single day's check-in. The heart of the app. */
 export interface DailyLog {
   date: ISODate
-  weightKg: number | null
+  weightKg: number | null // logged weekly, not daily
   creatine: boolean
-  vitamins: boolean
+  omega3: boolean
+  protein: boolean // weekly target (2x/week), still ticked per-day
   pushups: number | null
   futsalPlayed: boolean
   homeWorkout: boolean
   cardio: boolean
   waterTarget: boolean
   sweetsAvoided: boolean
-  sleepQuality: number | null // 1–5
   notes: string
-  /** Custom supplements tracked by id -> taken */
+  /** Custom user-added supplements tracked by id -> taken */
   customSupplements: Record<string, boolean>
   updatedAt: number // epoch ms, for conflict-free imports
 }
@@ -95,6 +95,8 @@ export interface GoalSettings {
   monthlyPushupTarget: number
   weeklyFutsalTarget: number
   weeklyWorkoutTarget: number
+  weeklyProteinTarget: number // shakes per week (default 2)
+  weeklyWeightTarget: number // weigh-ins per week (default 1)
   waterGoalDescription: string
   customSupplements: CustomSupplement[]
   /** Which daily fields are required for a "complete" day. */
@@ -104,10 +106,10 @@ export interface GoalSettings {
 
 export type RequiredField =
   | 'creatine'
-  | 'vitamins'
+  | 'omega3'
   | 'pushups'
   | 'waterTarget'
-  | 'weightKg'
+  | 'training' // futsal OR home workout
 
 export type InsightTone = 'good' | 'warn' | 'bad' | 'neutral'
 
@@ -126,7 +128,9 @@ export interface WeeklyReport {
   weightChange: number | null
   disciplineScore: number
   creatineCompliance: number
-  vitaminsCompliance: number
+  omega3Compliance: number
+  proteinDays: number // shakes logged this week
+  weighIns: number // weigh-ins logged this week
   pushupTotal: number
   futsalSessions: number
   workoutSessions: number
@@ -143,7 +147,7 @@ export interface MonthlyReport {
   weightChange: number | null
   avgDisciplineScore: number
   creatineCompliance: number
-  vitaminsCompliance: number
+  omega3Compliance: number
   pushupTotal: number
   futsalSessions: number
   workoutSessions: number

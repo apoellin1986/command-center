@@ -70,12 +70,27 @@ export function generateInsights(db: AppDatabase): Insight[] {
     out.push(mk(`You missed creatine ${creatineMissed} times this month.`, 'warn'))
   }
 
+  // Omega 3 (new daily requirement)
+  const omegaWk = pct(pastThisWeek.filter((d) => logs[d]?.omega3).length, pastThisWeek.length)
+  if (omegaWk < 60 && pastThisWeek.length >= 3) {
+    out.push(mk(`Omega 3 is slipping this week (${omegaWk}%). It's a required daily now.`, 'bad'))
+  }
+
+  // Protein (weekly target)
+  const proteinWk = pastThisWeek.filter((d) => logs[d]?.protein).length
+  const proteinTarget = db.settings.weeklyProteinTarget
+  if (proteinWk >= proteinTarget && proteinTarget > 0) {
+    out.push(mk(`Protein target hit — ${proteinWk}/${proteinTarget} shakes this week.`, 'good'))
+  } else if (pastThisWeek.length >= 4 && proteinWk < proteinTarget) {
+    out.push(mk(`Protein behind: ${proteinWk}/${proteinTarget} shakes this week.`, 'warn'))
+  }
+
   // Best / weakest habit
-  const habitPct = (field: 'creatine' | 'vitamins' | 'waterTarget') =>
+  const habitPct = (field: 'creatine' | 'omega3' | 'waterTarget') =>
     pct(thisMonth.filter((d) => d <= today && logs[d]?.[field]).length, thisMonth.filter((d) => d <= today && logs[d]).length || 1)
   const habits: { name: string; v: number }[] = [
     { name: 'creatine', v: habitPct('creatine') },
-    { name: 'vitamins', v: habitPct('vitamins') },
+    { name: 'omega 3', v: habitPct('omega3') },
     { name: 'water', v: habitPct('waterTarget') },
   ]
   habits.sort((a, b) => b.v - a.v)
@@ -100,18 +115,16 @@ export function generateInsights(db: AppDatabase): Insight[] {
   if (fstats.recoveryWarning) {
     out.push(mk(`You played futsal ${fstats.thisWeek}x this week. Prioritize recovery and hydration.`, 'warn'))
   }
-  // sleep vs performance correlation
-  const perfWithSleep = db.futsalSessions
-    .map((s) => ({ perf: s.performance, sleep: logs[s.date]?.sleepQuality ?? null }))
-    .filter((x) => x.sleep != null) as { perf: number; sleep: number }[]
-  if (perfWithSleep.length >= 4) {
-    const hi = perfWithSleep.filter((x) => x.sleep >= 4)
-    const lo = perfWithSleep.filter((x) => x.sleep < 4)
+  // energy-before vs performance correlation
+  const perfWithEnergy = db.futsalSessions.map((s) => ({ perf: s.performance, energy: s.energyBefore }))
+  if (perfWithEnergy.length >= 4) {
+    const hi = perfWithEnergy.filter((x) => x.energy >= 4)
+    const lo = perfWithEnergy.filter((x) => x.energy < 4)
     if (hi.length && lo.length) {
       const hiAvg = avg(hi.map((x) => x.perf))
       const loAvg = avg(lo.map((x) => x.perf))
       if (hiAvg - loAvg >= 0.8) {
-        out.push(mk(`You perform better at futsal when sleep quality is 4+ (${round1(hiAvg)} vs ${round1(loAvg)}/10).`, 'good'))
+        out.push(mk(`You perform better at futsal when pre-game energy is 4+ (${round1(hiAvg)} vs ${round1(loAvg)}/10).`, 'good'))
       }
     }
   }

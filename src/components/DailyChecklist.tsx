@@ -3,15 +3,14 @@ import { useStore } from '../storage/StoreContext'
 import { isFieldSatisfied } from '../utils/calculations'
 import ToggleButton from './ToggleButton'
 import NumberStepper from './NumberStepper'
-import SegmentedControl from './SegmentedControl'
 import { IconDrop, IconDumbbell, IconFlame, IconFutsal } from './icons'
 
 const REQUIRED_LABELS: Record<RequiredField, string> = {
   creatine: 'Creatine',
-  vitamins: 'Vitamins',
+  omega3: 'Omega 3',
   pushups: 'Push-ups',
   waterTarget: 'Water',
-  weightKg: 'Weight',
+  training: 'Training',
 }
 
 export default function DailyChecklist({ date }: { date: ISODate }) {
@@ -22,9 +21,12 @@ export default function DailyChecklist({ date }: { date: ISODate }) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Weight */}
+      {/* Weight — weekly cadence */}
       <div>
-        <label className="field-label mb-2 block">Body weight (kg)</label>
+        <div className="mb-2 flex items-center justify-between">
+          <label className="field-label">Body weight (kg)</label>
+          <span className="text-xs text-zinc-500">Weekly is enough</span>
+        </div>
         <input
           type="number"
           inputMode="decimal"
@@ -63,10 +65,16 @@ export default function DailyChecklist({ date }: { date: ISODate }) {
           onChange={(v) => updateLog(date, { creatine: v })}
         />
         <ToggleButton
-          label="Vitamins"
-          hint="Vitamin D / multivitamin"
-          value={log.vitamins}
-          onChange={(v) => updateLog(date, { vitamins: v })}
+          label="Omega 3"
+          hint="Daily"
+          value={log.omega3}
+          onChange={(v) => updateLog(date, { omega3: v })}
+        />
+        <ToggleButton
+          label="Protein shake"
+          hint={`Target ${settings.weeklyProteinTarget}× / week`}
+          value={log.protein}
+          onChange={(v) => updateLog(date, { protein: v })}
         />
         {customSupps.map((s) => (
           <ToggleButton
@@ -82,9 +90,9 @@ export default function DailyChecklist({ date }: { date: ISODate }) {
         ))}
       </div>
 
-      {/* Training */}
+      {/* Training — either satisfies the day */}
       <div className="flex flex-col gap-2">
-        <label className="field-label">Training</label>
+        <label className="field-label">Training — futsal or workout completes the day</label>
         <ToggleButton
           label="Futsal played"
           icon={<IconFutsal width={20} height={20} />}
@@ -120,16 +128,6 @@ export default function DailyChecklist({ date }: { date: ISODate }) {
           label="Sweets avoided"
           value={log.sweetsAvoided}
           onChange={(v) => updateLog(date, { sweetsAvoided: v })}
-        />
-      </div>
-
-      {/* Sleep */}
-      <div>
-        <label className="field-label mb-2 block">Sleep quality</label>
-        <SegmentedControl
-          value={log.sleepQuality}
-          onChange={(v) => updateLog(date, { sleepQuality: v })}
-          options={[1, 2, 3, 4, 5].map((n) => ({ label: String(n), value: n }))}
         />
       </div>
 

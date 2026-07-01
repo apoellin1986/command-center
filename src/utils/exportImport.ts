@@ -56,8 +56,8 @@ export function exportWeightCSV(db: AppDatabase): void {
 
 export function exportDailyCSV(db: AppDatabase): void {
   const header = [
-    'date', 'weight_kg', 'creatine', 'vitamins', 'pushups', 'futsal',
-    'home_workout', 'cardio', 'water', 'sweets_avoided', 'sleep_quality', 'notes',
+    'date', 'weight_kg', 'creatine', 'omega3', 'protein', 'pushups', 'futsal',
+    'home_workout', 'cardio', 'water', 'sweets_avoided', 'notes',
   ]
   const logs = Object.values(db.dailyLogs).sort((a, b) => (a.date < b.date ? -1 : 1))
   const rows = [
@@ -66,14 +66,14 @@ export function exportDailyCSV(db: AppDatabase): void {
       l.date,
       l.weightKg ?? '',
       l.creatine ? 1 : 0,
-      l.vitamins ? 1 : 0,
+      l.omega3 ? 1 : 0,
+      l.protein ? 1 : 0,
       l.pushups ?? '',
       l.futsalPlayed ? 1 : 0,
       l.homeWorkout ? 1 : 0,
       l.cardio ? 1 : 0,
       l.waterTarget ? 1 : 0,
       l.sweetsAvoided ? 1 : 0,
-      l.sleepQuality ?? '',
       l.notes,
     ]),
   ]
