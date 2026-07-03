@@ -2,7 +2,10 @@ import type { AppDatabase } from '../types'
 import { migrate } from '../storage/db'
 import { weightEntriesFromLogs } from './calculations'
 
-async function download(filename: string, content: string, type: string): Promise<void> {
+/** @returns true if the file was shared/downloaded, false if the user
+ * cancelled the iOS share sheet (so callers don't record a backup that
+ * never actually left the app). */
+async function download(filename: string, content: string, type: string): Promise<boolean> {
   const blob = new Blob([content], { type })
 
   // On iOS standalone PWAs the classic anchor-download is unreliable; the
@@ -11,10 +14,10 @@ async function download(filename: string, content: string, type: string): Promis
   if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file] })
-      return
+      return true
     } catch (e) {
       // User cancelled the sheet — done, don't also trigger a download.
-      if (e instanceof DOMException && e.name === 'AbortError') return
+      if (e instanceof DOMException && e.name === 'AbortError') return false
       // Anything else: fall through to the anchor download.
     }
   }
@@ -27,14 +30,21 @@ async function download(filename: string, content: string, type: string): Promis
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+  return true
 }
 
 function stamp(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-export function exportJSON(db: AppDatabase): void {
-  void download(`command-center-backup-${stamp()}.json`, JSON.stringify(db, null, 2), 'application/json')
+/** Full backup. Stamps the payload's own lastBackupAt so the exported file
+ * knows when it was made. @returns true if the export completed. */
+export function exportJSON(db: AppDatabase): Promise<boolean> {
+  const stamped: AppDatabase = {
+    ...db,
+    meta: { ...db.meta, lastBackupAt: Date.now() },
+  }
+  return download(`command-center-backup-${stamp()}.json`, JSON.stringify(stamped, null, 2), 'application/json')
 }
 
 export interface ImportResult {
@@ -78,7 +88,7 @@ export function exportWeightCSV(db: AppDatabase): void {
   const entries = weightEntriesFromLogs(db.dailyLogs)
   const rows = [['date', 'weight_kg'], ...entries.map((e) => [e.date, e.weightKg])]
   const csv = rows.map((r) => r.map(csvEscape).join(',')).join('\n')
-  void download(`weight-log-${stamp()}.csv`, csv, 'text/csv')
+  void download(`weight-log-${stamp()}.csv`, csv, 'text/csv') // CSV is lossy — not a real backup
 }
 
 export function exportDailyCSV(db: AppDatabase): void {

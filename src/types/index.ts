@@ -169,5 +169,7 @@ export interface AppDatabase {
     createdAt: number
     onboarded: boolean
     isDemo: boolean
+    /** epoch ms of the last full JSON export; null = never backed up */
+    lastBackupAt: number | null
   }
 }

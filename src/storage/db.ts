@@ -74,6 +74,7 @@ export function emptyDatabase(): AppDatabase {
       createdAt: Date.now(),
       onboarded: false,
       isDemo: false,
+      lastBackupAt: null,
     },
   }
 }

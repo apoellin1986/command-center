@@ -107,7 +107,7 @@ export function generateDemoDatabase(): AppDatabase {
     dailyLogs,
     futsalSessions,
     workoutSessions,
-    meta: { createdAt: Date.now(), onboarded: true, isDemo: true },
+    meta: { createdAt: Date.now(), onboarded: true, isDemo: true, lastBackupAt: null },
   }
 }
 

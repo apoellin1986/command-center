@@ -6,11 +6,11 @@ import Modal from '../components/Modal'
 import { IconPlus, IconTrash } from '../components/icons'
 import {
   exportDailyCSV,
-  exportJSON,
   exportWeightCSV,
   parseImportedJSON,
   pickFile,
 } from '../utils/exportImport'
+import { useBackup } from '../hooks/useBackup'
 import { age } from '../utils/calculations'
 
 const requiredOptions: { value: RequiredField; label: string }[] = [
@@ -66,6 +66,7 @@ function NumField({ label, value, onChange, step = 1, suffix, min = 0 }: NumFiel
 
 export default function SettingsPage() {
   const { db, updateSettings, resetAll, importDatabase, onboardDemo } = useStore()
+  const { status: backup, busy: backupBusy, backupNow } = useBackup()
   const s = db.settings
   const set = (patch: Partial<GoalSettings>) => updateSettings(patch)
 
@@ -203,7 +204,35 @@ export default function SettingsPage() {
       {/* Data management */}
       <section className="card flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Data</h2>
-        <button onClick={() => exportJSON(db)} className="btn-ghost">Export all data (JSON backup)</button>
+
+        {/* Backup status */}
+        <div className={`flex items-center justify-between rounded-xl border px-3 py-2.5 ${
+          backup.tone === 'good'
+            ? 'border-good/40 bg-good/10'
+            : backup.tone === 'warn'
+              ? 'border-warn/40 bg-warn/10'
+              : 'border-bad/40 bg-bad/10'
+        }`}>
+          <div>
+            <p className="field-label">Last backup</p>
+            <p className={`text-sm font-semibold ${
+              backup.tone === 'good' ? 'text-good' : backup.tone === 'warn' ? 'text-warn' : 'text-bad'
+            }`}>
+              {backup.label}
+            </p>
+          </div>
+          {backup.overdue && backup.hasData && (
+            <span className="pill bg-base-700 text-zinc-300">Back up soon</span>
+          )}
+        </div>
+
+        <button
+          onClick={() => void backupNow()}
+          disabled={backupBusy}
+          className="btn-primary disabled:opacity-50"
+        >
+          {backupBusy ? 'Saving…' : 'Export all data (JSON backup)'}
+        </button>
         <button onClick={doImport} className="btn-ghost">Import data from JSON</button>
         <div className="grid grid-cols-2 gap-3">
           <button onClick={() => exportWeightCSV(db)} className="btn-ghost">Weight CSV</button>

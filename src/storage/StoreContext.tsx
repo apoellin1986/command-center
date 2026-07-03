@@ -43,6 +43,8 @@ interface StoreContextValue {
   deleteWorkout: (id: string) => void
   // settings
   updateSettings: (patch: Partial<GoalSettings>) => void
+  /** record that a full JSON backup was just taken */
+  markBackedUp: () => void
   // lifecycle
   onboardFresh: () => void
   onboardDemo: () => void
@@ -179,6 +181,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const updateSettings = (patch: Partial<GoalSettings>) =>
       setDb((p) => ({ ...p, settings: { ...p.settings, ...patch } }))
 
+    const markBackedUp = () =>
+      setDb((p) => ({ ...p, meta: { ...p.meta, lastBackupAt: Date.now() } }))
+
     const onboardFresh = () =>
       setDb(() => {
         const fresh = emptyDatabase()
@@ -198,7 +203,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       db, ready, saveFailed, getLog, updateLog,
       addFutsal, updateFutsal, deleteFutsal,
       addWorkout, updateWorkout, deleteWorkout,
-      updateSettings, onboardFresh, onboardDemo, importDatabase, resetAll,
+      updateSettings, markBackedUp, onboardFresh, onboardDemo, importDatabase, resetAll,
     }
   }, [db, ready, saveFailed])
 

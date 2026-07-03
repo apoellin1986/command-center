@@ -6,6 +6,7 @@ import PageHeader from '../components/PageHeader'
 import RingProgress from '../components/RingProgress'
 import DailyChecklist, { RequiredChecklistStatus } from '../components/DailyChecklist'
 import StatCard from '../components/StatCard'
+import BackupNudge from '../components/BackupNudge'
 import { IconCalendar, IconFlame } from '../components/icons'
 import {
   age,
@@ -65,6 +66,8 @@ export default function TodayPage() {
           </Link>
         }
       />
+
+      <BackupNudge />
 
       {/* Hero: discipline ring + verdict */}
       <div className="card flex items-center gap-5">
