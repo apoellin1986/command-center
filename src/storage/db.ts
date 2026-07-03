@@ -1,6 +1,7 @@
 import type {
   AppDatabase,
   DailyLog,
+  FastingSession,
   FutsalSession,
   GoalSettings,
   ISODate,
@@ -37,6 +38,7 @@ export function defaultSettings(): GoalSettings {
     weeklyWorkoutTarget: 2,
     weeklyProteinTarget: 2,
     weeklyWeightTarget: 1,
+    fastingGoalHours: 16,
     waterGoalDescription: '2.5L / day',
     customSupplements: [],
     requiredFields: [...DEFAULT_REQUIRED],
@@ -70,6 +72,7 @@ export function emptyDatabase(): AppDatabase {
     dailyLogs: {},
     futsalSessions: [],
     workoutSessions: [],
+    fastingSessions: [],
     meta: {
       createdAt: Date.now(),
       onboarded: false,
@@ -140,6 +143,7 @@ export function migrate(input: unknown): AppDatabase {
     ...storedSettings,
     weeklyProteinTarget: storedSettings.weeklyProteinTarget ?? base.settings.weeklyProteinTarget,
     weeklyWeightTarget: storedSettings.weeklyWeightTarget ?? base.settings.weeklyWeightTarget,
+    fastingGoalHours: storedSettings.fastingGoalHours ?? base.settings.fastingGoalHours,
     // Drop the old built-in "Protein shake"/"Vitamin D" supplements —
     // omega 3 and protein are now first-class fields.
     customSupplements: (storedSettings.customSupplements ?? []).filter(
@@ -178,12 +182,32 @@ export function migrate(input: unknown): AppDatabase {
     .filter(validSession)
     .map((s) => ({ ...s, exercises: Array.isArray(s.exercises) ? s.exercises : [] })) as WorkoutSession[]
 
+  // Fasting sessions are timestamp-based; guard against garbage and any
+  // impossible window (end before start).
+  const validFast = (s: unknown): s is FastingSession => {
+    if (!s || typeof s !== 'object') return false
+    const f = s as Record<string, unknown>
+    if (typeof f.id !== 'string' || !Number.isFinite(f.startAt)) return false
+    if (f.endAt != null && (!Number.isFinite(f.endAt) || (f.endAt as number) < (f.startAt as number))) return false
+    return true
+  }
+  const fastingSessions = (Array.isArray(data.fastingSessions) ? data.fastingSessions : [])
+    .filter(validFast)
+    .map((f) => ({
+      id: f.id,
+      startAt: f.startAt,
+      endAt: f.endAt ?? null,
+      goalHours: Number.isFinite(f.goalHours) ? f.goalHours : settings.fastingGoalHours,
+      notes: typeof f.notes === 'string' ? f.notes : '',
+    })) as FastingSession[]
+
   return {
     version: DB_VERSION,
     settings,
     dailyLogs,
     futsalSessions,
     workoutSessions,
+    fastingSessions,
     meta: { ...base.meta, ...(data.meta ?? {}) },
   }
 }

@@ -10,6 +10,7 @@ import {
 import type {
   AppDatabase,
   DailyLog,
+  FastingSession,
   FutsalSession,
   GoalSettings,
   ISODate,
@@ -41,6 +42,12 @@ interface StoreContextValue {
   addWorkout: (s: WorkoutSession) => void
   updateWorkout: (id: string, patch: Partial<WorkoutSession>) => void
   deleteWorkout: (id: string) => void
+  // fasting
+  startFast: (goalHours: number) => void
+  endFast: () => void
+  addFast: (s: FastingSession) => void
+  updateFast: (id: string, patch: Partial<FastingSession>) => void
+  deleteFast: (id: string) => void
   // settings
   updateSettings: (patch: Partial<GoalSettings>) => void
   /** record that a full JSON backup was just taken */
@@ -178,6 +185,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { ...p, workoutSessions: rest, dailyLogs }
       })
 
+    // Fasting — at most one active fast (endAt null) at a time.
+    const startFast = (goalHours: number) =>
+      setDb((p) => {
+        if (p.fastingSessions.some((s) => s.endAt == null)) return p // already fasting
+        const session: FastingSession = {
+          id: `fast-${Date.now()}`,
+          startAt: Date.now(),
+          endAt: null,
+          goalHours,
+          notes: '',
+        }
+        return { ...p, fastingSessions: [...p.fastingSessions, session] }
+      })
+    const endFast = () =>
+      setDb((p) => ({
+        ...p,
+        fastingSessions: p.fastingSessions.map((s) =>
+          s.endAt == null ? { ...s, endAt: Date.now() } : s,
+        ),
+      }))
+    const addFast = (s: FastingSession) =>
+      setDb((p) => ({ ...p, fastingSessions: [...p.fastingSessions, s] }))
+    const updateFast = (id: string, patch: Partial<FastingSession>) =>
+      setDb((p) => ({
+        ...p,
+        fastingSessions: p.fastingSessions.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+      }))
+    const deleteFast = (id: string) =>
+      setDb((p) => ({ ...p, fastingSessions: p.fastingSessions.filter((x) => x.id !== id) }))
+
     const updateSettings = (patch: Partial<GoalSettings>) =>
       setDb((p) => ({ ...p, settings: { ...p.settings, ...patch } }))
 
@@ -203,6 +240,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       db, ready, saveFailed, getLog, updateLog,
       addFutsal, updateFutsal, deleteFutsal,
       addWorkout, updateWorkout, deleteWorkout,
+      startFast, endFast, addFast, updateFast, deleteFast,
       updateSettings, markBackedUp, onboardFresh, onboardDemo, importDatabase, resetAll,
     }
   }, [db, ready, saveFailed])

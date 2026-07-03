@@ -1,6 +1,7 @@
 import type {
   AppDatabase,
   DailyLog,
+  FastingSession,
   FutsalSession,
   Intensity,
   WorkoutSession,
@@ -101,12 +102,31 @@ export function generateDemoDatabase(): AppDatabase {
     }
   }
 
+  // Fasting sessions — most recent ~14 days, a 16:8 fast ending ~noon each day
+  const fastingSessions: FastingSession[] = []
+  for (const date of dates.slice(-14)) {
+    if (r() > 0.28) {
+      const end = new Date(parseISO(date))
+      end.setHours(12, Math.floor(r() * 40), 0, 0)
+      const hours = 15 + r() * 4 // 15–19h
+      const start = end.getTime() - hours * 3_600_000
+      fastingSessions.push({
+        id: `demo-fast-${date}`,
+        startAt: start,
+        endAt: end.getTime(),
+        goalHours: 16,
+        notes: '',
+      })
+    }
+  }
+
   return {
     version: 1,
     settings,
     dailyLogs,
     futsalSessions,
     workoutSessions,
+    fastingSessions,
     meta: { createdAt: Date.now(), onboarded: true, isDemo: true, lastBackupAt: null },
   }
 }

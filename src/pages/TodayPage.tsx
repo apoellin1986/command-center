@@ -7,6 +7,7 @@ import RingProgress from '../components/RingProgress'
 import DailyChecklist, { RequiredChecklistStatus } from '../components/DailyChecklist'
 import StatCard from '../components/StatCard'
 import BackupNudge from '../components/BackupNudge'
+import FastingTimer from '../components/FastingTimer'
 import { IconCalendar, IconFlame } from '../components/icons'
 import {
   age,
@@ -93,6 +94,9 @@ export default function TodayPage() {
         <StatCard label="Logging streak" value={loggingStreak} sub="days logged" />
         <StatCard label="Week avg" value={weekAvg} sub="discipline" tone={scoreColor(weekAvg)} />
       </div>
+
+      {/* Fasting timer */}
+      <FastingTimer />
 
       {/* Weekly targets — protein & weigh-in */}
       <div className="card">

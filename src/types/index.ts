@@ -85,6 +85,15 @@ export interface CustomSupplement {
   enabled: boolean
 }
 
+/** An intermittent-fasting window. endAt null = fast currently running. */
+export interface FastingSession {
+  id: string
+  startAt: number // epoch ms
+  endAt: number | null // epoch ms, null while active
+  goalHours: number // target window snapshot at start (e.g. 16)
+  notes: string
+}
+
 export interface GoalSettings {
   weightUnit: 'kg'
   startWeightKg: number
@@ -97,6 +106,7 @@ export interface GoalSettings {
   weeklyWorkoutTarget: number
   weeklyProteinTarget: number // shakes per week (default 2)
   weeklyWeightTarget: number // weigh-ins per week (default 1)
+  fastingGoalHours: number // intermittent-fasting target window (default 16)
   waterGoalDescription: string
   customSupplements: CustomSupplement[]
   /** Which daily fields are required for a "complete" day. */
@@ -165,6 +175,7 @@ export interface AppDatabase {
   dailyLogs: Record<ISODate, DailyLog>
   futsalSessions: FutsalSession[]
   workoutSessions: WorkoutSession[]
+  fastingSessions: FastingSession[]
   meta: {
     createdAt: number
     onboarded: boolean
