@@ -31,11 +31,21 @@ export default function DailyChecklist({ date }: { date: ISODate }) {
           type="number"
           inputMode="decimal"
           step="0.1"
+          min="0"
+          max="400"
           value={log.weightKg ?? ''}
           placeholder="—"
-          onChange={(e) =>
-            updateLog(date, { weightKg: e.target.value === '' ? null : Number(e.target.value) })
-          }
+          onChange={(e) => {
+            const raw = e.target.value
+            if (raw === '') {
+              updateLog(date, { weightKg: null })
+              return
+            }
+            const v = Number(raw)
+            // reject NaN / negative / absurd values instead of storing them
+            if (!Number.isFinite(v) || v < 0 || v > 400) return
+            updateLog(date, { weightKg: v === 0 ? null : v })
+          }}
           className="input text-center text-2xl font-bold"
         />
       </div>

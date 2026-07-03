@@ -10,12 +10,13 @@ import {
   round1,
   weightEntriesFromLogs,
 } from '../utils/calculations'
-import { formatShort, todayISO } from '../utils/date'
+import { formatShort } from '../utils/date'
+import { useToday } from '../hooks/useToday'
 
 export default function WeightPage() {
   const { db, getLog, updateLog } = useStore()
   const settings = db.settings
-  const today = todayISO()
+  const today = useToday()
   const [quickWeight, setQuickWeight] = useState<string>('')
 
   const entries = useMemo(() => weightEntriesFromLogs(db.dailyLogs), [db.dailyLogs])
@@ -38,7 +39,14 @@ export default function WeightPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Weight" subtitle={`Target ${settings.targetWeightKg} kg by ${formatShort(settings.targetDate)}`} />
+      <PageHeader
+        title="Weight"
+        subtitle={
+          trend.targetPassed
+            ? `Target ${settings.targetWeightKg} kg — date passed, set a new one in Settings`
+            : `Target ${settings.targetWeightKg} kg by ${formatShort(settings.targetDate)}`
+        }
+      />
 
       {/* Status banner */}
       <div
@@ -110,11 +118,20 @@ export default function WeightPage() {
         <StatCard label="Total lost" value={`${trend.totalLost ?? 0} kg`} tone={(trend.totalLost ?? 0) > 0 ? 'good' : 'neutral'} />
         <StatCard label="Remaining" value={`${trend.remaining ?? totalToLose} kg`} tone={(trend.remaining ?? 1) <= 0 ? 'good' : 'warn'} />
         <StatCard label="Avg weekly change" value={`${trend.avgWeeklyChange ?? 0} kg`} tone={(trend.avgWeeklyChange ?? 0) < 0 ? 'good' : 'warn'} />
-        <StatCard label="Need / week" value={`${trend.requiredWeeklyLoss ?? 0} kg`} sub="to hit target" />
+        <StatCard
+          label="Need / week"
+          value={trend.requiredWeeklyLoss != null ? `${trend.requiredWeeklyLoss} kg` : '—'}
+          sub={trend.targetPassed ? 'target date passed' : 'to hit target'}
+        />
         <StatCard label="Best" value={`${trend.best ?? '—'} kg`} tone="good" />
         <StatCard label="Worst" value={`${trend.worst ?? '—'} kg`} tone="warn" />
         <StatCard label="Entries logged" value={trend.entries} />
-        <StatCard label="Days remaining" value={trend.daysRemaining} sub="until target date" />
+        <StatCard
+          label="Days remaining"
+          value={trend.targetPassed ? 'Passed' : trend.daysRemaining}
+          sub={trend.targetPassed ? 'set a new target date' : 'until target date'}
+          tone={trend.targetPassed ? 'bad' : 'neutral'}
+        />
       </div>
 
       {/* Projection */}

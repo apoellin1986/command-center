@@ -33,7 +33,16 @@ export default function NumberStepper({
             inputMode="numeric"
             value={value ?? ''}
             placeholder={placeholder}
-            onChange={(e) => onChange(e.target.value === '' ? null : Math.max(min, Number(e.target.value)))}
+            onChange={(e) => {
+              const raw = e.target.value
+              if (raw === '') {
+                onChange(null)
+                return
+              }
+              const v = Number(raw)
+              if (!Number.isFinite(v)) return // never store NaN
+              onChange(Math.max(min, Math.floor(v)))
+            }}
             className="input text-center text-xl font-bold"
           />
           {suffix && (

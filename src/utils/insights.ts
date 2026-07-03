@@ -6,6 +6,7 @@ import {
   calculateWeightTrend,
   pct,
   round1,
+  round2,
   weightEntriesFromLogs,
 } from './calculations'
 import {
@@ -16,6 +17,7 @@ import {
   startOfMonth,
   startOfWeek,
   todayISO,
+  weekdayIndexMon,
 } from './date'
 
 let _id = 0
@@ -52,10 +54,24 @@ export function generateInsights(db: AppDatabase): Insight[] {
     out.push(mk('You are ahead of your weight target. Do not get comfortable.', 'good'))
   }
 
-  // Sweets vs weight pattern
-  const sweetsDays = thisMonth.filter((d) => logs[d] && !logs[d].sweetsAvoided && d <= today)
-  if (sweetsDays.length >= 3) {
-    out.push(mk('Your weight tends to spike the day after sweets. The pattern is in your data.', 'warn'))
+  // Sweets vs weight — actually measured: next-day weight change after sweets
+  // days vs after clean days. Only reported when the data really shows it.
+  const loggedDates = Object.keys(logs).sort()
+  const deltas: { sweets: boolean; delta: number }[] = []
+  for (const d of loggedDates) {
+    const log = logs[d]
+    const next = logs[addDays(d, 1)]
+    if (log?.weightKg != null && next?.weightKg != null) {
+      deltas.push({ sweets: !log.sweetsAvoided, delta: next.weightKg - log.weightKg })
+    }
+  }
+  const sweetDeltas = deltas.filter((x) => x.sweets).map((x) => x.delta)
+  const cleanDeltas = deltas.filter((x) => !x.sweets).map((x) => x.delta)
+  if (sweetDeltas.length >= 3 && cleanDeltas.length >= 3) {
+    const gap = avg(sweetDeltas) - avg(cleanDeltas)
+    if (gap >= 0.15) {
+      out.push(mk(`Measured: you gain ~${round2(gap)} kg more the day after sweets. The pattern is real.`, 'warn'))
+    }
   }
 
   // --- Supplements ---
@@ -107,7 +123,9 @@ export function generateInsights(db: AppDatabase): Insight[] {
     if (change >= 10) out.push(mk(`Push-up volume increased ${change}% vs last week.`, 'good'))
     else if (change <= -10) out.push(mk(`Push-up volume dropped ${Math.abs(change)}% vs last week.`, 'bad'))
   }
-  const pstats = calculatePushupStats(logs, thisWeek, thisMonth, dateRange(addDays(today, -90), today))
+  // full history, not an arbitrary 90-day window — PRs shouldn't expire
+  const earliest = loggedDates.length && loggedDates[0] < today ? loggedDates[0] : today
+  const pstats = calculatePushupStats(logs, thisWeek, thisMonth, dateRange(earliest, today))
   if (pstats.bestDay > 0) out.push(mk(`Push-up best day: ${pstats.bestDay}. Streak: ${pstats.currentStreak} days.`, 'neutral'))
 
   // --- Futsal ---
@@ -140,15 +158,13 @@ export function generateInsights(db: AppDatabase): Insight[] {
       out.push(mk('Your discipline score is lower on non-futsal days. Structure your rest days.', 'warn'))
     }
   }
-  // weekend leak
-  const weekendDays = thisMonth.filter((d) => {
-    const dow = new Date(d).getDay()
-    return (dow === 0 || dow === 6) && d <= today && logs[d]
-  })
-  const weekdayDays = thisMonth.filter((d) => {
-    const dow = new Date(d).getDay()
-    return dow > 0 && dow < 6 && d <= today && logs[d]
-  })
+  // weekend leak (weekdayIndexMon parses in local time; new Date(iso) is UTC)
+  const weekendDays = thisMonth.filter(
+    (d) => weekdayIndexMon(d) >= 5 && d <= today && logs[d],
+  )
+  const weekdayDays = thisMonth.filter(
+    (d) => weekdayIndexMon(d) < 5 && d <= today && logs[d],
+  )
   if (weekendDays.length >= 2 && weekdayDays.length >= 3) {
     const we = avg(weekendDays.map(dayScore))
     const wd = avg(weekdayDays.map(dayScore))

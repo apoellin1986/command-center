@@ -6,7 +6,7 @@ import StatCard from '../../components/StatCard'
 import Modal from '../../components/Modal'
 import SegmentedControl from '../../components/SegmentedControl'
 import { IconPlus, IconTrash } from '../../components/icons'
-import { formatShort, todayISO } from '../../utils/date'
+import { formatShort, isValidISODate, todayISO } from '../../utils/date'
 
 const types: WorkoutType[] = ['Push', 'Pull', 'Legs', 'Full Body', 'Core', 'Treadmill/Cardio', 'Recovery/Mobility']
 const intensities: Intensity[] = ['Low', 'Medium', 'High']
@@ -38,7 +38,12 @@ export default function WorkoutsView() {
   const removeExercise = (id: string) =>
     setForm((f) => ({ ...f, exercises: f.exercises.filter((e) => e.id !== id) }))
 
+  // A cleared or future date must never be persisted — an invalid date used
+  // to crash list rendering permanently.
+  const dateInvalid = !isValidISODate(form.date) || form.date > todayISO()
+
   const save = () => {
+    if (dateInvalid) return
     addWorkout({ ...form, id: `workout-${Date.now()}`, exercises: form.exercises.filter((e) => e.name.trim()) })
     if (form.completed) {
       const log = getLog(form.date)
@@ -86,7 +91,7 @@ export default function WorkoutsView() {
         footer={
           <div className="flex gap-2">
             <button onClick={() => setOpen(false)} className="btn-ghost flex-1">Cancel</button>
-            <button onClick={save} className="btn-primary flex-1">Save workout</button>
+            <button onClick={save} disabled={dateInvalid} className="btn-primary flex-1 disabled:opacity-40">Save workout</button>
           </div>
         }
       >
@@ -94,6 +99,7 @@ export default function WorkoutsView() {
           <div>
             <label className="field-label mb-2 block">Date</label>
             <input type="date" value={form.date} max={todayISO()} onChange={(e) => setForm({ ...form, date: e.target.value })} className="input" />
+            {dateInvalid && <p className="mt-1 text-xs text-bad">Pick a valid date — today or earlier.</p>}
           </div>
           <div>
             <label className="field-label mb-2 block">Type</label>

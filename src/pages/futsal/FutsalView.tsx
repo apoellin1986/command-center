@@ -7,7 +7,7 @@ import Modal from '../../components/Modal'
 import SegmentedControl from '../../components/SegmentedControl'
 import { IconPlus, IconTrash } from '../../components/icons'
 import { calculateFutsalStats } from '../../utils/calculations'
-import { formatShort, todayISO } from '../../utils/date'
+import { formatShort, isValidISODate, todayISO } from '../../utils/date'
 
 const intensities: Intensity[] = ['Low', 'Medium', 'High']
 
@@ -38,7 +38,12 @@ export default function FutsalView() {
     [db.futsalSessions],
   )
 
+  // A cleared or future date must never be persisted — an invalid date used
+  // to crash list rendering permanently.
+  const dateInvalid = !isValidISODate(form.date) || form.date > todayISO()
+
   const save = () => {
+    if (dateInvalid) return
     addFutsal({ ...form, id: `futsal-${Date.now()}` })
     // keep the daily log in sync
     const log = getLog(form.date)
@@ -98,7 +103,7 @@ export default function FutsalView() {
         footer={
           <div className="flex gap-2">
             <button onClick={() => setOpen(false)} className="btn-ghost flex-1">Cancel</button>
-            <button onClick={save} className="btn-primary flex-1">Save session</button>
+            <button onClick={save} disabled={dateInvalid} className="btn-primary flex-1 disabled:opacity-40">Save session</button>
           </div>
         }
       >
@@ -106,6 +111,7 @@ export default function FutsalView() {
           <div>
             <label className="field-label mb-2 block">Date</label>
             <input type="date" value={form.date} max={todayISO()} onChange={(e) => setForm({ ...form, date: e.target.value })} className="input" />
+            {dateInvalid && <p className="mt-1 text-xs text-bad">Pick a valid date — today or earlier.</p>}
           </div>
           <div>
             <label className="field-label mb-2 block">Duration: {form.durationMin} min</label>

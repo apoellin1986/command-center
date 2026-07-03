@@ -5,6 +5,7 @@ import StatCard from '../../components/StatCard'
 import BarChartSimple from '../../components/BarChartSimple'
 import CalendarHeatmap from '../../components/CalendarHeatmap'
 import {
+  calculateBestStreak,
   calculateCurrentStreak,
   calculateDailyDisciplineScore,
   calculateWeeklyAverage,
@@ -33,13 +34,8 @@ export default function DisciplineView() {
       monthAvg: calculateWeeklyAverage(monthScores),
       perfectStreak: calculateCurrentStreak((d) => isDayComplete(db.dailyLogs[d], settings)),
       loggingStreak: calculateCurrentStreak((d) => isDayLogged(db.dailyLogs[d])),
-      bestLoggingStreak: lastNDays(120).reduce(
-        (acc, d) => {
-          const run = isDayLogged(db.dailyLogs[d]) ? acc.run + 1 : 0
-          return { run, best: Math.max(acc.best, run) }
-        },
-        { run: 0, best: 0 },
-      ).best,
+      // full history — a best streak shouldn't expire after 120 days
+      bestLoggingStreak: calculateBestStreak(ranges.all, (d) => isDayLogged(db.dailyLogs[d])),
       strongDays: monthScores.filter((s) => s >= 80).length,
       poorDays: monthScores.filter((s) => s < 40).length,
       chart,

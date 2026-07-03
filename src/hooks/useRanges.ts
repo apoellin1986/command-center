@@ -7,8 +7,8 @@ import {
   endOfWeek,
   startOfMonth,
   startOfWeek,
-  todayISO,
 } from '../utils/date'
+import { useToday } from './useToday'
 import type { ISODate } from '../types'
 
 export interface Ranges {
@@ -23,8 +23,8 @@ export interface Ranges {
 /** Centralised date windows used by the stats across pages. */
 export function useRanges(): Ranges {
   const { db } = useStore()
+  const today = useToday() // reactive — rolls over at midnight / on resume
   return useMemo(() => {
-    const today = todayISO()
     const logDates = Object.keys(db.dailyLogs)
     const sessionDates = [
       ...db.futsalSessions.map((s) => s.date),
@@ -40,5 +40,5 @@ export function useRanges(): Ranges {
       month: dateRange(startOfMonth(today), endOfMonth(today)),
       all: dateRange(start, today),
     }
-  }, [db])
+  }, [db, today])
 }

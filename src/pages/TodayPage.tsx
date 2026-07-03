@@ -19,14 +19,15 @@ import {
   scoreColor,
   scoreVerdict,
 } from '../utils/calculations'
-import { daysBetween, formatLong, todayISO } from '../utils/date'
+import { daysBetween, formatLong } from '../utils/date'
+import { useToday } from '../hooks/useToday'
 
 const colorHex = { good: '#22c55e', warn: '#f59e0b', bad: '#ef4444' }
 
 export default function TodayPage() {
   const { db, getLog } = useStore()
   const ranges = useRanges()
-  const today = todayISO()
+  const today = useToday()
   const log = getLog(today)
   const settings = db.settings
 
@@ -116,16 +117,26 @@ export default function TodayPage() {
       </div>
 
       {/* Birthday countdown — the deadline */}
-      <div className="card flex items-center justify-between bg-gradient-to-br from-accent-muted/40 to-base-700">
-        <div>
+      {daysToBirthday >= 0 ? (
+        <div className="card flex items-center justify-between bg-gradient-to-br from-accent-muted/40 to-base-700">
+          <div>
+            <p className="field-label">Deadline</p>
+            <p className="text-xl font-bold">Turning {turning}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-3xl font-extrabold text-accent">{daysToBirthday}</p>
+            <p className="text-xs text-zinc-400">days left</p>
+          </div>
+        </div>
+      ) : (
+        <div className="card border-l-4 border-l-warn">
           <p className="field-label">Deadline</p>
-          <p className="text-xl font-bold">Turning {turning}</p>
+          <p className="text-xl font-bold">Target date passed</p>
+          <p className="mt-1 text-xs text-zinc-400">
+            The work doesn't stop at {turning}. Set your next target date in Settings.
+          </p>
         </div>
-        <div className="text-right">
-          <p className="text-3xl font-extrabold text-accent">{Math.max(0, daysToBirthday)}</p>
-          <p className="text-xs text-zinc-400">days left</p>
-        </div>
-      </div>
+      )}
 
       {/* The check-in */}
       <div className="card">

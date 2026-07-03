@@ -2,8 +2,23 @@ import type { AppDatabase } from '../types'
 import { migrate } from '../storage/db'
 import { weightEntriesFromLogs } from './calculations'
 
-function download(filename: string, content: string, type: string) {
+async function download(filename: string, content: string, type: string): Promise<void> {
   const blob = new Blob([content], { type })
+
+  // On iOS standalone PWAs the classic anchor-download is unreliable; the
+  // native share sheet ("Save to Files") is the dependable path there.
+  const file = new File([blob], filename, { type })
+  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] })
+      return
+    } catch (e) {
+      // User cancelled the sheet — done, don't also trigger a download.
+      if (e instanceof DOMException && e.name === 'AbortError') return
+      // Anything else: fall through to the anchor download.
+    }
+  }
+
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -19,7 +34,7 @@ function stamp(): string {
 }
 
 export function exportJSON(db: AppDatabase): void {
-  download(`command-center-backup-${stamp()}.json`, JSON.stringify(db, null, 2), 'application/json')
+  void download(`command-center-backup-${stamp()}.json`, JSON.stringify(db, null, 2), 'application/json')
 }
 
 export interface ImportResult {
@@ -31,13 +46,25 @@ export interface ImportResult {
 export function parseImportedJSON(text: string): ImportResult {
   try {
     const parsed = JSON.parse(text)
-    if (typeof parsed !== 'object' || parsed === null) {
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
       return { ok: false, error: 'File does not contain a valid object.' }
+    }
+    // Reject files that are valid JSON but clearly not a Command Center
+    // backup — migrating random JSON would "succeed" as an empty database
+    // and silently destroy everything.
+    const obj = parsed as Record<string, unknown>
+    const hasLogs = typeof obj.dailyLogs === 'object' && obj.dailyLogs !== null
+    const hasSettings = typeof obj.settings === 'object' && obj.settings !== null
+    if (!hasLogs || !hasSettings) {
+      return {
+        ok: false,
+        error: "This file doesn't look like a Command Center backup (missing dailyLogs/settings).",
+      }
     }
     // migrate() hardens any partial / older shape into a safe DB.
     const db = migrate(parsed)
     return { ok: true, db }
-  } catch (e) {
+  } catch {
     return { ok: false, error: 'Invalid JSON. The file could not be parsed.' }
   }
 }
@@ -51,7 +78,7 @@ export function exportWeightCSV(db: AppDatabase): void {
   const entries = weightEntriesFromLogs(db.dailyLogs)
   const rows = [['date', 'weight_kg'], ...entries.map((e) => [e.date, e.weightKg])]
   const csv = rows.map((r) => r.map(csvEscape).join(',')).join('\n')
-  download(`weight-log-${stamp()}.csv`, csv, 'text/csv')
+  void download(`weight-log-${stamp()}.csv`, csv, 'text/csv')
 }
 
 export function exportDailyCSV(db: AppDatabase): void {
@@ -78,10 +105,11 @@ export function exportDailyCSV(db: AppDatabase): void {
     ]),
   ]
   const csv = rows.map((r) => r.map(csvEscape).join(',')).join('\n')
-  download(`daily-checkins-${stamp()}.csv`, csv, 'text/csv')
+  void download(`daily-checkins-${stamp()}.csv`, csv, 'text/csv')
 }
 
-export function pickFile(onText: (text: string) => void): void {
+/** Passes `null` when the file could not be read (instead of failing silently). */
+export function pickFile(onText: (text: string | null) => void): void {
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = 'application/json,.json'
@@ -90,6 +118,7 @@ export function pickFile(onText: (text: string) => void): void {
     if (!file) return
     const reader = new FileReader()
     reader.onload = () => onText(String(reader.result ?? ''))
+    reader.onerror = () => onText(null)
     reader.readAsText(file)
   }
   input.click()

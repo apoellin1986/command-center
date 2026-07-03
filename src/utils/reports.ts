@@ -66,8 +66,11 @@ export function generateWeeklyReport(
   ).length
 
   const ranked = [...scores].sort((a, b) => b.score - a.score)
-  const bestDay = ranked[0]?.score > 0 ? ranked[0].date : null
-  const worstDay = ranked.length ? ranked[ranked.length - 1].date : null
+  const bestDay = ranked.length && ranked[0].score > 0 ? ranked[0].date : null
+  // Only call out a "worst day" when it was actually below Strong — a week of
+  // all-80+ days has no worst day worth shaming.
+  const worst = ranked.length ? ranked[ranked.length - 1] : null
+  const worstDay = worst && worst.score < 80 ? worst.date : null
 
   // weakness / win
   const metrics: { label: string; value: number }[] = [

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { CustomSupplement, GoalSettings, RequiredField } from '../types'
+import { useEffect, useState } from 'react'
+import type { AppDatabase, CustomSupplement, GoalSettings, RequiredField } from '../types'
 import { useStore } from '../storage/StoreContext'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
@@ -21,11 +21,45 @@ const requiredOptions: { value: RequiredField; label: string }[] = [
   { value: 'training', label: 'Training (futsal/workout)' },
 ]
 
-function NumField({ label, value, onChange, step = 1, suffix }: { label: string; value: number; onChange: (v: number) => void; step?: number; suffix?: string }) {
+interface NumFieldProps {
+  label: string
+  value: number
+  onChange: (v: number) => void
+  step?: number
+  suffix?: string
+  min?: number
+}
+
+/** Numeric setting with a local draft: commits (clamped) on blur so
+ * half-typed or garbage values never get persisted. */
+function NumField({ label, value, onChange, step = 1, suffix, min = 0 }: NumFieldProps) {
+  const [draft, setDraft] = useState(String(value))
+  useEffect(() => setDraft(String(value)), [value])
+
+  const commit = () => {
+    const v = Number(draft)
+    if (draft.trim() === '' || !Number.isFinite(v)) {
+      setDraft(String(value)) // revert — never persist garbage
+      return
+    }
+    const clamped = Math.max(min, v)
+    setDraft(String(clamped))
+    onChange(clamped)
+  }
+
   return (
     <div>
       <label className="field-label mb-1.5 block">{label}{suffix ? ` (${suffix})` : ''}</label>
-      <input type="number" value={value} step={step} onChange={(e) => onChange(Number(e.target.value))} className="input" />
+      <input
+        type="number"
+        inputMode="decimal"
+        value={draft}
+        step={step}
+        min={min}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        className="input"
+      />
     </div>
   )
 }
@@ -36,6 +70,8 @@ export default function SettingsPage() {
   const set = (patch: Partial<GoalSettings>) => updateSettings(patch)
 
   const [confirmReset, setConfirmReset] = useState(false)
+  const [confirmDemo, setConfirmDemo] = useState(false)
+  const [pendingImport, setPendingImport] = useState<AppDatabase | null>(null)
   const [importMsg, setImportMsg] = useState<string | null>(null)
   const [newSupp, setNewSupp] = useState('')
 
@@ -55,16 +91,33 @@ export default function SettingsPage() {
   const removeSupp = (id: string) =>
     set({ customSupplements: s.customSupplements.filter((x) => x.id !== id) })
 
-  const doImport = () =>
+  // Import is two-step: pick + validate, then an explicit confirmation that
+  // spells out what gets replaced. No more one-tap total data loss.
+  const doImport = () => {
+    setImportMsg(null)
     pickFile((text) => {
+      if (text == null) {
+        setImportMsg('Could not read the selected file.')
+        return
+      }
       const res = parseImportedJSON(text)
       if (res.ok && res.db) {
-        importDatabase(res.db)
-        setImportMsg('Import successful. Your data has been replaced.')
+        setPendingImport(res.db)
       } else {
         setImportMsg(res.error ?? 'Import failed.')
       }
     })
+  }
+
+  const confirmImport = () => {
+    if (!pendingImport) return
+    importDatabase(pendingImport)
+    setPendingImport(null)
+    setImportMsg('Import successful. Your data has been replaced.')
+  }
+
+  const currentDays = Object.keys(db.dailyLogs).length
+  const importDays = pendingImport ? Object.keys(pendingImport.dailyLogs).length : 0
 
   return (
     <div className="flex flex-col gap-5">
@@ -74,16 +127,26 @@ export default function SettingsPage() {
       <section className="card flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Weight goal</h2>
         <div className="grid grid-cols-2 gap-3">
-          <NumField label="Start weight" suffix="kg" step={0.1} value={s.startWeightKg} onChange={(v) => set({ startWeightKg: v })} />
-          <NumField label="Target weight" suffix="kg" step={0.1} value={s.targetWeightKg} onChange={(v) => set({ targetWeightKg: v })} />
+          <NumField label="Start weight" suffix="kg" step={0.1} min={1} value={s.startWeightKg} onChange={(v) => set({ startWeightKg: v })} />
+          <NumField label="Target weight" suffix="kg" step={0.1} min={1} value={s.targetWeightKg} onChange={(v) => set({ targetWeightKg: v })} />
         </div>
         <div>
           <label className="field-label mb-1.5 block">Target date</label>
-          <input type="date" value={s.targetDate} onChange={(e) => set({ targetDate: e.target.value })} className="input" />
+          <input
+            type="date"
+            value={s.targetDate}
+            onChange={(e) => e.target.value && set({ targetDate: e.target.value })}
+            className="input"
+          />
         </div>
         <div>
           <label className="field-label mb-1.5 block">Birth date — you are {age(s.birthDate)}</label>
-          <input type="date" value={s.birthDate} onChange={(e) => set({ birthDate: e.target.value })} className="input" />
+          <input
+            type="date"
+            value={s.birthDate}
+            onChange={(e) => e.target.value && set({ birthDate: e.target.value })}
+            className="input"
+          />
         </div>
       </section>
 
@@ -91,7 +154,7 @@ export default function SettingsPage() {
       <section className="card flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Training targets</h2>
         <div className="grid grid-cols-2 gap-3">
-          <NumField label="Daily push-ups" value={s.dailyPushupTarget} onChange={(v) => set({ dailyPushupTarget: v })} />
+          <NumField label="Daily push-ups" min={1} value={s.dailyPushupTarget} onChange={(v) => set({ dailyPushupTarget: v })} />
           <NumField label="Monthly push-ups" value={s.monthlyPushupTarget} onChange={(v) => set({ monthlyPushupTarget: v })} />
           <NumField label="Weekly futsal" value={s.weeklyFutsalTarget} onChange={(v) => set({ weeklyFutsalTarget: v })} />
           <NumField label="Weekly workouts" value={s.weeklyWorkoutTarget} onChange={(v) => set({ weeklyWorkoutTarget: v })} />
@@ -132,7 +195,7 @@ export default function SettingsPage() {
           </div>
         ))}
         <div className="flex gap-2">
-          <input value={newSupp} onChange={(e) => setNewSupp(e.target.value)} placeholder="e.g. Omega-3" className="input flex-1" onKeyDown={(e) => e.key === 'Enter' && addSupplement()} />
+          <input value={newSupp} onChange={(e) => setNewSupp(e.target.value)} placeholder="e.g. Magnesium" className="input flex-1" onKeyDown={(e) => e.key === 'Enter' && addSupplement()} />
           <button onClick={addSupplement} className="btn-ghost px-4"><IconPlus width={18} height={18} /></button>
         </div>
       </section>
@@ -147,7 +210,7 @@ export default function SettingsPage() {
           <button onClick={() => exportDailyCSV(db)} className="btn-ghost">Check-ins CSV</button>
         </div>
         {db.meta.isDemo && (
-          <button onClick={onboardDemo} className="btn-ghost">Regenerate demo data</button>
+          <button onClick={() => setConfirmDemo(true)} className="btn-ghost">Regenerate demo data</button>
         )}
         <button onClick={() => setConfirmReset(true)} className="btn-danger">Reset all data</button>
         {importMsg && <p className="text-center text-xs text-zinc-400">{importMsg}</p>}
@@ -155,6 +218,55 @@ export default function SettingsPage() {
           Everything is stored only on this device. Export regularly — clearing browser data wipes it.
         </p>
       </section>
+
+      {/* Import confirmation */}
+      <Modal
+        open={pendingImport != null}
+        onClose={() => setPendingImport(null)}
+        title="Replace all data?"
+        footer={
+          <div className="flex gap-2">
+            <button onClick={() => setPendingImport(null)} className="btn-ghost flex-1">Cancel</button>
+            <button onClick={confirmImport} className="btn-danger flex-1">Replace my data</button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-3 text-sm text-zinc-300">
+          <p>
+            The selected file contains <strong>{importDays} logged days</strong>,{' '}
+            {pendingImport?.futsalSessions.length ?? 0} futsal sessions and{' '}
+            {pendingImport?.workoutSessions.length ?? 0} workouts.
+          </p>
+          <p className="text-warn">
+            Importing replaces everything currently on this device
+            ({currentDays} logged days). This cannot be undone.
+          </p>
+        </div>
+      </Modal>
+
+      {/* Demo regeneration confirmation */}
+      <Modal
+        open={confirmDemo}
+        onClose={() => setConfirmDemo(false)}
+        title="Regenerate demo data?"
+        footer={
+          <div className="flex gap-2">
+            <button onClick={() => setConfirmDemo(false)} className="btn-ghost flex-1">Cancel</button>
+            <button
+              onClick={() => { onboardDemo(); setConfirmDemo(false) }}
+              className="btn-danger flex-1"
+            >
+              Yes, replace with demo
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-zinc-300">
+          This replaces <strong>everything</strong> currently stored — including any real
+          check-ins you've logged on top of the demo — with fresh random demo data.
+          Export a backup first if anything here is real.
+        </p>
+      </Modal>
 
       <Modal
         open={confirmReset}

@@ -11,7 +11,7 @@ import SettingsPage from './pages/SettingsPage'
 import CalendarPage from './pages/CalendarPage'
 
 export default function App() {
-  const { db, ready } = useStore()
+  const { db, ready, saveFailed } = useStore()
 
   if (!ready) return null
 
@@ -19,6 +19,12 @@ export default function App() {
 
   return (
     <div className="mx-auto min-h-[100dvh] max-w-lg px-4 pb-24 pt-5">
+      {saveFailed && (
+        <div className="mb-4 rounded-xl border border-bad/50 bg-bad/15 p-3 text-sm text-bad">
+          ⚠ Saving failed — storage may be full or restricted. Your latest changes are
+          NOT persisted. Export a backup now (Settings → Data).
+        </div>
+      )}
       <Routes>
         <Route path="/" element={<TodayPage />} />
         <Route path="/weight" element={<WeightPage />} />

@@ -17,6 +17,15 @@ export function parseISO(s: ISODate): Date {
   return new Date(y, (m ?? 1) - 1, d ?? 1)
 }
 
+/** Strict 'YYYY-MM-DD' check that also rejects impossible dates.
+ * Round-trips through Date because JS rolls over out-of-range values
+ * (new Date(2026, 1, 30) silently becomes 2 March) instead of failing. */
+export function isValidISODate(s: unknown): s is ISODate {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false
+  const d = parseISO(s)
+  return !Number.isNaN(d.getTime()) && toISO(d) === s
+}
+
 export function addDays(s: ISODate, n: number): ISODate {
   const d = parseISO(s)
   d.setDate(d.getDate() + n)
@@ -87,17 +96,21 @@ const MONTHS = [
 
 export function formatLong(s: ISODate): string {
   const d = parseISO(s)
+  if (Number.isNaN(d.getTime())) return '—'
   return `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getFullYear()}`
 }
 
 export function formatShort(s: ISODate): string {
   const d = parseISO(s)
+  if (Number.isNaN(d.getTime())) return '—'
   return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`
 }
 
 export function formatMonthLabel(key: string): string {
   const [y, m] = key.split('-').map(Number)
-  return `${MONTHS[(m ?? 1) - 1]} ${y}`
+  const month = MONTHS[(m ?? 1) - 1]
+  if (!month || !Number.isFinite(y)) return '—'
+  return `${month} ${y}`
 }
 
 export function weekdayShort(s: ISODate): string {

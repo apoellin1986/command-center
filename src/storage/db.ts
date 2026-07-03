@@ -1,11 +1,13 @@
 import type {
   AppDatabase,
   DailyLog,
+  FutsalSession,
   GoalSettings,
   ISODate,
   RequiredField,
+  WorkoutSession,
 } from '../types'
-import { todayISO } from '../utils/date'
+import { isValidISODate, todayISO } from '../utils/date'
 
 const STORAGE_KEY = 'command-center-db'
 export const DB_VERSION = 2
@@ -88,15 +90,26 @@ export function loadDatabase(): AppDatabase | null {
     return migrate(parsed)
   } catch (err) {
     console.error('Failed to load database, starting fresh.', err)
+    // Stash the unreadable payload so the data is recoverable, not destroyed
+    // when the user proceeds through onboarding again.
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (raw) localStorage.setItem(`${STORAGE_KEY}.corrupt`, raw)
+    } catch {
+      /* storage unusable — nothing more we can do */
+    }
     return null
   }
 }
 
-export function saveDatabase(db: AppDatabase): void {
+/** @returns true if the write actually succeeded (quota/private-mode can fail). */
+export function saveDatabase(db: AppDatabase): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db))
+    return true
   } catch (err) {
     console.error('Failed to save database.', err)
+    return false
   }
 }
 
@@ -136,23 +149,40 @@ export function migrate(input: unknown): AppDatabase {
         ? [...DEFAULT_REQUIRED]
         : storedSettings.requiredFields.filter((f) => VALID_REQUIRED.includes(f)),
   }
+  // Repair unusable dates (e.g. a cleared date input that got persisted) so
+  // downstream date math and formatting never see garbage.
+  if (!isValidISODate(settings.targetDate)) settings.targetDate = base.settings.targetDate
+  if (!isValidISODate(settings.startDate)) settings.startDate = base.settings.startDate
+  if (!isValidISODate(settings.birthDate)) settings.birthDate = base.settings.birthDate
 
   const dailyLogs: Record<ISODate, DailyLog> = {}
   if (data.dailyLogs && typeof data.dailyLogs === 'object') {
     for (const [date, log] of Object.entries(data.dailyLogs)) {
       if (!log || typeof log !== 'object') continue
+      if (!isValidISODate(date)) continue // drop corrupt keys, keep the rest
       // blankDailyLog fills omega3/protein defaults; stored creatine/pushups/
       // water/etc. are preserved. Removed fields (vitamins/sleep) are ignored.
       dailyLogs[date] = { ...blankDailyLog(date), ...(log as DailyLog), date }
     }
   }
 
+  const validSession = (s: unknown): s is { id: string; date: string } =>
+    !!s && typeof s === 'object' &&
+    typeof (s as { id?: unknown }).id === 'string' &&
+    isValidISODate((s as { date?: unknown }).date)
+
+  const futsalSessions = (Array.isArray(data.futsalSessions) ? data.futsalSessions : [])
+    .filter(validSession) as FutsalSession[]
+  const workoutSessions = (Array.isArray(data.workoutSessions) ? data.workoutSessions : [])
+    .filter(validSession)
+    .map((s) => ({ ...s, exercises: Array.isArray(s.exercises) ? s.exercises : [] })) as WorkoutSession[]
+
   return {
     version: DB_VERSION,
     settings,
     dailyLogs,
-    futsalSessions: Array.isArray(data.futsalSessions) ? data.futsalSessions : [],
-    workoutSessions: Array.isArray(data.workoutSessions) ? data.workoutSessions : [],
+    futsalSessions,
+    workoutSessions,
     meta: { ...base.meta, ...(data.meta ?? {}) },
   }
 }

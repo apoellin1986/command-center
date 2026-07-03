@@ -243,6 +243,7 @@ export interface WeightTrend {
   recentWeeklyChange: number | null
   requiredWeeklyLoss: number | null
   daysRemaining: number
+  targetPassed: boolean
   projectedDate: ISODate | null
   status: TrendStatus
   statusColor: 'good' | 'warn' | 'bad'
@@ -254,7 +255,9 @@ export function calculateWeightTrend(
   settings: GoalSettings,
 ): WeightTrend {
   const today = todayISO()
-  const daysRemaining = Math.max(0, daysBetween(today, settings.targetDate))
+  const rawDaysRemaining = daysBetween(today, settings.targetDate)
+  const targetPassed = rawDaysRemaining < 0
+  const daysRemaining = Math.max(0, rawDaysRemaining)
 
   if (!entries.length) {
     return {
@@ -262,7 +265,7 @@ export function calculateWeightTrend(
       currentAvg: null, best: null, worst: null, totalLost: null,
       remaining: round1(settings.startWeightKg - settings.targetWeightKg),
       avgWeeklyChange: null, recentWeeklyChange: null,
-      requiredWeeklyLoss: null, daysRemaining, projectedDate: null,
+      requiredWeeklyLoss: null, daysRemaining, targetPassed, projectedDate: null,
       status: 'no-data', statusColor: 'warn', statusLabel: 'No data yet',
     }
   }
@@ -289,22 +292,28 @@ export function calculateWeightTrend(
       ? round2(currentAvg - (prior[prior.length - 1].avg ?? currentAvg))
       : avgWeeklyChange
 
-  const weeksRemaining = Math.max(0.1, daysRemaining / 7)
+  // A required rate is only meaningful while the target date is ahead of us.
   const requiredWeeklyLoss =
-    remaining > 0 ? round2(remaining / weeksRemaining) : 0
+    targetPassed || daysRemaining === 0
+      ? null
+      : remaining > 0
+        ? round2(remaining / (daysRemaining / 7))
+        : 0
 
   // projection from recent rate
   const rate = recentWeeklyChange ?? avgWeeklyChange // kg/week (negative = losing)
   let projectedDate: ISODate | null = null
   if (rate < -0.01 && remaining > 0) {
-    const weeksNeeded = remaining / Math.abs(rate)
-    projectedDate = addDays(last.date, Math.round(weeksNeeded * 7))
+    const daysNeeded = Math.round((remaining / Math.abs(rate)) * 7)
+    // A projection years out is noise, not a forecast — don't pretend otherwise.
+    if (daysNeeded <= 366) projectedDate = addDays(last.date, daysNeeded)
   }
 
   const { status, statusColor, statusLabel } = classifyTrend(
     rate,
     requiredWeeklyLoss,
     remaining,
+    targetPassed,
   )
 
   return {
@@ -312,20 +321,28 @@ export function calculateWeightTrend(
     currentWeight: round1(last.weightKg), currentAvg: round1(currentAvg),
     best: round1(best), worst: round1(worst), totalLost, remaining,
     avgWeeklyChange, recentWeeklyChange, requiredWeeklyLoss,
-    daysRemaining, projectedDate, status, statusColor, statusLabel,
+    daysRemaining, targetPassed, projectedDate, status, statusColor, statusLabel,
   }
 }
 
 function classifyTrend(
   rate: number, // kg/week, negative = losing
-  required: number, // kg/week needed (positive)
+  required: number | null, // kg/week needed (positive); null when date passed
   remaining: number,
+  targetPassed: boolean,
 ): { status: TrendStatus; statusColor: 'good' | 'warn' | 'bad'; statusLabel: string } {
   if (remaining <= 0) {
     return { status: 'ahead', statusColor: 'good', statusLabel: 'Target reached — hold the line' }
   }
+  if (targetPassed) {
+    return {
+      status: 'seriously-behind',
+      statusColor: 'bad',
+      statusLabel: 'Target date passed — set a new one',
+    }
+  }
   const loss = -rate // positive when losing
-  if (required <= 0) {
+  if (required == null || required <= 0) {
     return { status: 'on-track', statusColor: 'good', statusLabel: 'On track' }
   }
   if (loss >= required * 1.1) {
